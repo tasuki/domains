@@ -5,10 +5,15 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http
 import Json.Decode as D
+import List.Extra
 
 
 baseUrl =
     "/"
+
+
+
+-- model
 
 
 main =
@@ -29,6 +34,10 @@ type alias Domain =
 
 type alias Domains =
     List Domain
+
+
+type alias GroupedDomains =
+    List ( Int, Domains )
 
 
 type Model
@@ -56,6 +65,33 @@ apiToDomains lds =
     in
     List.map apiToDomain lds.domains
         |> List.sortBy (\d -> d.price)
+
+
+groupDomains : Domains -> GroupedDomains
+groupDomains domains =
+    let
+        nextIndex : Int -> Int
+        nextIndex i =
+            if String.startsWith "1" (String.fromInt i) then
+                i * 5
+
+            else
+                i * 2
+
+        helper : Domains -> Int -> GroupedDomains -> GroupedDomains
+        helper ds limit acc =
+            case List.Extra.splitWhen (\d -> d.price >= limit) ds of
+                Just ( lower, bigger ) ->
+                    helper bigger (nextIndex limit) (( limit, lower ) :: acc)
+
+                Nothing ->
+                    ( limit, ds ) :: acc
+    in
+    helper domains 100 [] |> List.reverse
+
+
+
+-- http things
 
 
 type alias ListedDomain =
@@ -90,6 +126,10 @@ getDomains =
         }
 
 
+
+-- init/update
+
+
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( Loading, getDomains )
@@ -112,6 +152,10 @@ subscriptions m =
     Sub.none
 
 
+
+-- view
+
+
 view : Model -> Html Msg
 view model =
     div [ id "domains" ] (viewModel model)
@@ -126,7 +170,8 @@ viewModel model =
             ]
 
         Success domains ->
-            viewDomains domains
+            [ h2 [] [ text "Hello Happy Handshake Heroes. Here, Have Heaps:" ] ]
+                ++ (groupDomains domains |> viewGroups)
 
         _ ->
             [ h2 [] [ text "Hello Happy Handshake Heroes" ]
@@ -134,15 +179,25 @@ viewModel model =
             ]
 
 
-viewDomains : Domains -> List (Html msg)
-viewDomains domains =
-    [ div [ class "pure-g" ] (List.map viewDomain domains) ]
+viewGroups : GroupedDomains -> List (Html msg)
+viewGroups grouped =
+    List.map viewGroup grouped
+
+
+viewGroup : ( Int, Domains ) -> Html msg
+viewGroup group =
+    case group of
+        ( under, domains ) ->
+            div []
+                [ div [ class "group" ] [ text <| "<" ++ String.fromInt under ]
+                , div [ class "pure-g" ] (List.map viewDomain domains)
+                ]
 
 
 viewDomain : Domain -> Html msg
 viewDomain domain =
     div [ class "domain" ]
-        [ div [ class "pure-u-1-2 name" ] [ a [ href <| "https://www.namebase.io/domains/" ++ domain.name ] [ text domain.name ] ]
-        , div [ class "pure-u-1-4 goog" ] [ a [ href <| "https://www.google.com/search?q=" ++ domain.name ] [ text "goog" ] ]
-        , div [ class "pure-u-1-4 price" ] [ text <| String.fromInt domain.price ]
+        [ div [ class "pure-u-2-3 name" ] [ a [ href <| "https://www.namebase.io/domains/" ++ domain.name ] [ text domain.name ] ]
+        , div [ class "pure-u-1-6 goog" ] [ a [ href <| "https://www.google.com/search?q=" ++ domain.name ] [ text "g" ] ]
+        , div [ class "pure-u-1-6 price" ] [ text <| String.fromInt domain.price ]
         ]
