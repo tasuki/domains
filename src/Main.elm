@@ -9,7 +9,7 @@ import List.Extra
 
 
 baseUrl =
-    "/"
+    "http://domains.tasuki/"
 
 
 
