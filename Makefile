@@ -1,4 +1,6 @@
-react:
-	elm reactor
+release:
+	elm make src/Main.elm --optimize --output=domains.js
 develop:
-	watch -n 5 elm make src/Main.elm --debug --output=domains.js
+	find . -name '*.elm' | entr elm make src/Main.elm --debug --output=domains.js
+serve:
+	php -S localhost:8000

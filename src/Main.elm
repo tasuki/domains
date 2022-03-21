@@ -8,10 +8,6 @@ import Json.Decode as D
 import List.Extra
 
 
-baseUrl =
-    "http://domains.tasuki/"
-
-
 
 -- model
 
@@ -121,7 +117,7 @@ listedDecoder =
 getDomains : Cmd Msg
 getDomains =
     Http.get
-        { url = baseUrl ++ "/listed.json"
+        { url = "/listed.json"
         , expect = Http.expectJson Loaded listedDecoder
         }
 
