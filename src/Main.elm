@@ -3,9 +3,11 @@ module Main exposing (..)
 import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Events exposing (onInput)
 import Http
 import Json.Decode as D
 import List.Extra
+import Regex
 
 
 
@@ -36,14 +38,28 @@ type alias GroupedDomains =
     List ( Int, Domains )
 
 
-type Model
+type Status
     = Loading
     | Failure
-    | Success Domains
+    | Success
+
+
+type alias Model =
+    { status : Status
+    , domains : Domains
+    , search : String
+    , regex : Maybe Regex.Regex
+    , shownDomains : Domains
+    }
+
+
+type alias LoadedDomains =
+    Result Http.Error ListedDomains
 
 
 type Msg
-    = Loaded (Result Http.Error ListedDomains)
+    = Loaded LoadedDomains
+    | Search String
 
 
 apiToDomains : ListedDomains -> Domains
@@ -61,6 +77,11 @@ apiToDomains lds =
     in
     List.map apiToDomain lds.domains
         |> List.sortBy (\d -> d.price)
+
+
+filterDomains : Regex.Regex -> Domains -> Domains
+filterDomains regex domains =
+    List.filter (\d -> Regex.contains regex d.name) domains
 
 
 groupDomains : Domains -> GroupedDomains
@@ -126,21 +147,67 @@ getDomains =
 -- init/update
 
 
+emptyRegex : Regex.Regex
+emptyRegex =
+    Maybe.withDefault Regex.never <| Regex.fromString ""
+
+
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Loading, getDomains )
+    ( Model Loading [] "" (Just emptyRegex) [], getDomains )
+
+
+updateLoaded : LoadedDomains -> Model -> ( Model, Cmd msg )
+updateLoaded result model =
+    case result of
+        Ok listedDomains ->
+            let
+                domains =
+                    apiToDomains listedDomains
+            in
+            ( { model
+                | status = Success
+                , domains = domains
+                , shownDomains = domains
+              }
+            , Cmd.none
+            )
+
+        Err _ ->
+            ( { model | status = Failure }, Cmd.none )
+
+
+updateSearch : String -> Model -> ( Model, Cmd msg )
+updateSearch search model =
+    let
+        maybeRegex =
+            Regex.fromString search
+
+        shownDomains =
+            case maybeRegex of
+                Just regex ->
+                    filterDomains regex model.domains
+
+                Nothing ->
+                    model.shownDomains
+    in
+    ( { model
+        | search = search
+        , regex = maybeRegex
+        , shownDomains = shownDomains
+      }
+    , Cmd.none
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Loaded result ->
-            case result of
-                Ok listedDomains ->
-                    ( Success (apiToDomains listedDomains), Cmd.none )
+            updateLoaded result model
 
-                Err _ ->
-                    ( Failure, Cmd.none )
+        Search search ->
+            updateSearch search model
 
 
 subscriptions : model -> Sub msg
@@ -157,17 +224,35 @@ view model =
     div [ id "domains" ] (viewModel model)
 
 
-viewModel : Model -> List (Html msg)
+regexClass : Maybe Regex.Regex -> String
+regexClass regex =
+    case regex of
+        Just _ ->
+            ""
+
+        Nothing ->
+            "error"
+
+
+viewModel : Model -> List (Html Msg)
 viewModel model =
-    case model of
+    case model.status of
         Failure ->
             [ h2 [] [ text "Something's wrong :(" ]
             , p [] [ text "Could not load the list of domains... this is too bad really." ]
             ]
 
-        Success domains ->
-            [ h2 [] [ text "Hello Happy Handshake Heroes. Here, Have Heaps:" ] ]
-                ++ (groupDomains domains |> viewGroups)
+        Success ->
+            [ h2 [] [ text "Hello Happy Handshake Heroes. Here, Have Heaps:" ]
+            , input
+                [ placeholder "Regex search"
+                , value model.search
+                , onInput Search
+                , class (regexClass model.regex)
+                ]
+                []
+            ]
+                ++ (model.shownDomains |> groupDomains |> viewGroups)
 
         _ ->
             [ h2 [] [ text "Hello Happy Handshake Heroes" ]

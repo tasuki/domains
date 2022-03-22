@@ -16,6 +16,8 @@
     a:hover { color: #859900; }
 
     h2, p, .group { padding: 5px 20px; }
+	input { border: 10px solid #fdf6e3; padding: 10px; width: 100%; }
+	input.error { border-color: #dc322f; }
     .group { color: #93a1a1; font-size: 2em; margin-top: 20px; }
     .domain { width: 210px; padding: 1px 20px; border-left: 1px solid #eee8d5; }
     .price { text-align: right; }
@@ -25,6 +27,17 @@
 </head>
 <body>
   <div id="domains">
+    <p>
+      If you can see this perhaps you don't have JavaScript enabled?
+      Or perhaps I messed something up? No idea, really.
+    </p>
+
+    <p>
+      The <a href="https://github.com/tasuki/domains">source code is on GitHub</a>.
+      Looking there might or might not help.
+    </p>
+  </div>
+
   <script>
     var app = Elm.Main.init({ node: document.getElementById('domains') });
   </script>
